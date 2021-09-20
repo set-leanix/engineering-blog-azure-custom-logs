@@ -26,17 +26,11 @@ public abstract class BaseMetadata {
     @JsonProperty("WorkspaceName")
     protected String workspaceName;
 
-    @JsonProperty("Instance")
-    protected String instance;
-
     @JsonProperty("Server")
     protected String server;
 
     @JsonProperty("Region")
     protected String region;
-
-    @JsonProperty("InstanaTraceId")
-    protected String instanaTraceId;
 
     @JsonIgnore
     protected String logType;
