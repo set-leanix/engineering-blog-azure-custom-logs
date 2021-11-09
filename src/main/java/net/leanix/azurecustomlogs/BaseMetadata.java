@@ -9,11 +9,17 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.datatype.jsr310.ser.InstantSerializer;
 import java.time.Instant;
 
+/**
+ * Base metadata for all specialised custom logs. While this data structure also serves the purpose as interface to
+ * be accessed in {@link LogAnalytics} it also provides a basic Builder for shared attributes (here for example
+ * server, region, or workspaceId) and attributes you want to automatically generated once the event is ready to be sent,
+ * i.e., first and foremost its timestamp when finally calling the build() method. This class could also provide
+ * common helper functions such as the stripNullSafe() provided here.
+ */
 @JsonInclude(Include.NON_NULL)
 public abstract class BaseMetadata {
 
     public static final String TIMESTAMP_FIELD_NAME = "Timestamp";
-    public static final int AZURE_MAX_FIELD_LIMIT_CHARS = 32766;
 
     @JsonSerialize(using = InstantSerializer.class)
     @JsonFormat(shape = JsonFormat.Shape.STRING)
@@ -42,23 +48,11 @@ public abstract class BaseMetadata {
         return string.strip();
     }
 
-    protected static String normalizeUserAgent(String userAgent) {
-        if (userAgent == null) {
-            return userAgent;
-        }
-        userAgent = userAgent.strip();
-        userAgent = userAgent.replaceAll(" \\(.*$", ""); // remove User-Agent details
-        userAgent = userAgent.replaceAll("/.*$", ""); // remove User-Agent versions
-        userAgent = userAgent.replaceAll("\\s+", " "); // remove surplus whitespaces
-        userAgent = userAgent.strip(); // strip again
-        return userAgent.isEmpty() ? null : userAgent; // Don't set empty string values
-    }
-
     public String getLogType() {
         return logType;
     }
 
-    @SuppressWarnings("unchecked")  // return (B) this;
+    @SuppressWarnings("unchecked")
     public static class BaseMetadataBuilder<A extends BaseMetadata, B extends BaseMetadataBuilder<?, ?>> {
 
         protected A obj;

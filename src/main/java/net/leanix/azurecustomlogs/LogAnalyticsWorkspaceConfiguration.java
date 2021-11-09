@@ -1,29 +1,26 @@
 package net.leanix.azurecustomlogs;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-
+/**
+ * Main configuration to connect to your Azure Log Analytics workspace. Refer to
+ * https://docs.microsoft.com/en-us/azure/azure-monitor/logs/quick-create-workspace to learn how to create one.
+ */
 public class LogAnalyticsWorkspaceConfiguration {
 
-    @JsonProperty("id")
-    private final String id;
+    private final String workspaceId;
 
-    @JsonProperty("key")
-    private final String key;
+    private final String primaryKey;
 
-    public LogAnalyticsWorkspaceConfiguration(String id, String key) {
-        this.id = id;
-        this.key = key;
+    public LogAnalyticsWorkspaceConfiguration(String workspaceId, String primaryKey) {
+        this.workspaceId = workspaceId;
+        this.primaryKey = primaryKey;
     }
 
-    public String getId() {
-        return id;
+    public String getWorkspaceId() {
+        return workspaceId;
     }
 
-    public String getKey() {
-        return key;
+    public String getPrimaryKey() {
+        return primaryKey;
     }
 
-    public boolean isEnabled() {
-        return id != null && key != null;
-    }
 }

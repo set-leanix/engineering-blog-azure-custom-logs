@@ -4,6 +4,10 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+/**
+ * A custom log that might be calculated through a cron job every other hour to gather in-depth statistics about different
+ * scopes of your application, e.g., a per-customer dataset or other data.
+ */
 @JsonInclude(Include.NON_NULL)
 public class CustomLogStatisticMetadata extends BaseMetadata {
 

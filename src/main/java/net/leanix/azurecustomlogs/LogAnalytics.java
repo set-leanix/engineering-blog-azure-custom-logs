@@ -31,7 +31,7 @@ import okhttp3.logging.HttpLoggingInterceptor;
 import okhttp3.logging.HttpLoggingInterceptor.Level;
 
 /**
- * Sends request logs to an Azure Log Analytics Workspace.
+ * Core class that sends request logs to an Azure Log Analytics Workspace.
  * See https://docs.microsoft.com/en-us/azure/azure-monitor/platform/data-collector-api
  *
  * The incoming requests are asynchronously sent in order to avoid blocking IO on the request thread.
@@ -41,32 +41,36 @@ public final class LogAnalytics {
 
     // The Java built-in DateTimeFormatter.RFC_1123_DATE_TIME encodes day-of-month as a single digit, which the API doesn't like
     public static final DateTimeFormatter RFC_1123_DATE_TIME = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss O");
+    // Object mapper required to prepare our internal objects for API sending */
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String USER_AGENT = "OkHttp3 " + LogAnalytics.class.getName();
-
-    private final OkHttpClient client;
+    // A circuit breaker for better resilience
     private final CircuitBreaker circuitBreaker = CircuitBreaker.ofDefaults("Azure Log Analytics");
-    private final String workspaceUrl;
-    private final boolean enabled;
+    private final OkHttpClient client;
+    // Main Azure workspace configuration attributes
+    private final String azureWorkspaceUrl;
     private final String workspaceId;
     private final String workspaceKey;
     private final ApplicationConfiguration applicationConfiguration;
+    // Main Observer/Observable to take care of asynchronous log sending
     private final Subject<BaseMetadata> inputSubject = PublishSubject.<BaseMetadata>create().toSerialized();
+    // Toggle to gracefully catch environments where logging is not configured
+    private final boolean enabled;
 
     public LogAnalytics(LogAnalyticsWorkspaceConfiguration config, ApplicationConfiguration applicationConfiguration)
     {
-
-        enabled = config.isEnabled();
-        workspaceId = config.getId();
-        workspaceKey = config.getKey();
+        this.enabled = config.getWorkspaceId() != null && config.getPrimaryKey() != null;
+        this.workspaceId = config.getWorkspaceId();
+        this.workspaceKey = config.getPrimaryKey();
         this.applicationConfiguration = applicationConfiguration;
-        workspaceUrl = "https://" + workspaceId + ".ods.opinsights.azure.com/api/logs?api-version=2016-04-01";
-        inputSubject
+        this.azureWorkspaceUrl = "https://" + workspaceId + ".ods.opinsights.azure.com/api/logs?api-version=2016-04-01";
+        this.inputSubject
             .buffer(1, TimeUnit.SECONDS, 100)
             .filter(batch -> !batch.isEmpty())
             .observeOn(Schedulers.io())
             .subscribe(batch -> {
                 try {
+                    // In not configured environments (such as a test instance) we simply log instead.
                     if (!enabled) {
                         fallbackToStandardLogger(batch);
                         return; // no-op
@@ -78,21 +82,30 @@ public final class LogAnalytics {
                 }
             });
 
-        HttpLoggingInterceptor clientLoggingInterceptor = new HttpLoggingInterceptor();
         // Changing the level will drastically increase log volume to stdout -> Logentries.
         // Only for local testing, not for use in production!
+        HttpLoggingInterceptor clientLoggingInterceptor = new HttpLoggingInterceptor();
         clientLoggingInterceptor.setLevel(Level.NONE);
 
-        client = new OkHttpClient.Builder()
+        this.client = new OkHttpClient.Builder()
             .readTimeout(5, TimeUnit.SECONDS)
             .connectTimeout(2, TimeUnit.SECONDS)
             .addInterceptor(clientLoggingInterceptor)
             .build();
     }
 
-    private static Optional<String> toJson(BaseMetadata requestMetadata) {
+    private static Optional<String> toJson(BaseMetadata metadata) {
         try {
-            return Optional.of(OBJECT_MAPPER.writeValueAsString(requestMetadata));
+            return Optional.of(OBJECT_MAPPER.writeValueAsString(metadata));
+        } catch (JsonProcessingException e) {
+            // ignored
+            return Optional.empty();
+        }
+    }
+
+    private static Optional<String> toJson(List<BaseMetadata> metadataBatch) {
+        try {
+            return Optional.of(OBJECT_MAPPER.writeValueAsString(metadataBatch));
         } catch (JsonProcessingException e) {
             // ignored
             return Optional.empty();
@@ -102,7 +115,7 @@ public final class LogAnalytics {
     /**
      * Sends a request log asynchronously to Azure Log Analytics Workspace.
      *
-     * @param logAnalyticsMetadata the metadata to be sent
+     * @param logAnalyticsMetadata the metadata to be sent based on the current builder.
      */
     public <A extends BaseMetadata, B extends BaseMetadataBuilder<?, ?>> void sendAsync(BaseMetadataBuilder<A, B> logAnalyticsMetadata) {
         inputSubject.onNext(logAnalyticsMetadata
@@ -110,11 +123,13 @@ public final class LogAnalytics {
             .build());
     }
 
+    /**
+     * Core logic to send the logs to Azure.
+     *
+     * @param batch A batch of custom logs received during the last interval of our Subject
+     * @return Void
+     */
     private Void sendBatch(List<BaseMetadata> batch) {
-        if (!this.enabled) {
-            fallbackToStandardLogger(batch);
-            return null;
-        }
         Optional<String> optionalElements = toJson(batch);
         if (optionalElements.isEmpty()) {
             // Ignored
@@ -131,7 +146,7 @@ public final class LogAnalytics {
 
         RequestBody requestBody = RequestBody.create(okhttp3.MediaType.parse("application/json"), optionalElements.get());
         Request request = new Request.Builder()
-            .url(workspaceUrl)
+            .url(azureWorkspaceUrl)
             .post(requestBody)
             .header("User-Agent", USER_AGENT)
             .header("Authorization", authorization)
@@ -155,6 +170,8 @@ public final class LogAnalytics {
 
     private void sendBatchWithCircuitBreaker(List<BaseMetadata> batch) {
         batch.stream()
+            // This is important: We need to batch the incoming logs by type otherwise we mix them up when sending
+            // as we have to set the Log-Type header properly.
             .collect(groupingBy(BaseMetadata::getLogType))
             .forEach((type, typeBatch) -> {
                 Supplier<Void> sender = () -> sendBatch(typeBatch);
@@ -182,20 +199,11 @@ public final class LogAnalytics {
         }
     }
 
-    private Optional<String> toJson(List<BaseMetadata> batch) {
-        try {
-            return Optional.of(OBJECT_MAPPER.writeValueAsString(batch));
-        } catch (JsonProcessingException e) {
-            // ignored
-            return Optional.empty();
-        }
-    }
-
     private Void fallbackToStandardLogger(List<BaseMetadata> batch) {
         batch.stream()
             .map(LogAnalytics::toJson)
             .flatMap(Optional::stream)
-            .forEach(System.err::println);
+            .forEach(System.out::println);
         return null;
     }
 }
