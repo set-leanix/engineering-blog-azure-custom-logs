@@ -1,4 +1,4 @@
-package net.leanix.aclutil;
+package net.leanix.azurecustomlogs;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -48,12 +48,12 @@ public abstract class BaseMetadata {
             }
         }
 
-        public B appConfiguration(AppConfiguration appConfiguration) {
-            if (appConfiguration == null) {
+        public B appConfiguration(ApplicationConfiguration applicationConfiguration) {
+            if (applicationConfiguration == null) {
                 return (B) this;
             }
-            this.obj.region = stripNullSafe(appConfiguration.getRegionName());
-            this.obj.server = stripNullSafe(appConfiguration.getServerName());
+            this.obj.region = stripNullSafe(applicationConfiguration.getRegionName());
+            this.obj.server = stripNullSafe(applicationConfiguration.getServerName());
             return (B) this;
         }
 

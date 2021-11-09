@@ -1,4 +1,4 @@
-package net.leanix.aclutil;
+package net.leanix.azurecustomlogs;
 
 import static java.util.stream.Collectors.groupingBy;
 
@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import net.leanix.aclutil.BaseMetadata.BaseMetadataBuilder;
+import net.leanix.azurecustomlogs.BaseMetadata.BaseMetadataBuilder;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -51,17 +51,16 @@ public final class LogAnalytics {
     private final boolean enabled;
     private final String workspaceId;
     private final String workspaceKey;
-    private final AppConfiguration appConfiguration;
+    private final ApplicationConfiguration applicationConfiguration;
     private final Subject<BaseMetadata> inputSubject = PublishSubject.<BaseMetadata>create().toSerialized();
 
-    public LogAnalytics(LogAnalyticsWorkspaceConfiguration config,
-        AppConfiguration appConfiguration
-    )
+    public LogAnalytics(LogAnalyticsWorkspaceConfiguration config, ApplicationConfiguration applicationConfiguration)
     {
+
         enabled = config.isEnabled();
         workspaceId = config.getId();
         workspaceKey = config.getKey();
-        this.appConfiguration = appConfiguration;
+        this.applicationConfiguration = applicationConfiguration;
         workspaceUrl = "https://" + workspaceId + ".ods.opinsights.azure.com/api/logs?api-version=2016-04-01";
         inputSubject
             .buffer(1, TimeUnit.SECONDS, 100)
@@ -99,11 +98,15 @@ public final class LogAnalytics {
      */
     public <A extends BaseMetadata, B extends BaseMetadataBuilder<?, ?>> void sendAsync(BaseMetadataBuilder<A, B> logAnalyticsMetadata) {
         inputSubject.onNext(logAnalyticsMetadata
-            .appConfiguration(appConfiguration)
+            .appConfiguration(applicationConfiguration)
             .build());
     }
 
-    protected Void sendBatch(List<BaseMetadata> batch) {
+    private Void sendBatch(List<BaseMetadata> batch) {
+        if (!this.enabled) {
+            fallbackToStandardLogger(batch);
+            return null;
+        }
         Optional<String> optionalElements = toJson(batch);
         if (optionalElements.isEmpty()) {
             // Ignored
@@ -126,7 +129,7 @@ public final class LogAnalytics {
             .header("Authorization", authorization)
             .header("Log-Type", logType)
             .header("x-ms-date", nowRfc1123)
-            .header("time-generated-field", CustomLogMetadata.TIMESTAMP_FIELD_NAME)
+            .header("time-generated-field", CustomLogRequestMetadata.TIMESTAMP_FIELD_NAME)
             .build();
 
         try (Response response = client.newCall(request).execute()) {

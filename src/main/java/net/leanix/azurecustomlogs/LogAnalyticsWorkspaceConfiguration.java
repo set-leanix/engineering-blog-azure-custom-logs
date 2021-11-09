@@ -1,4 +1,4 @@
-package net.leanix.aclutil;
+package net.leanix.azurecustomlogs;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
