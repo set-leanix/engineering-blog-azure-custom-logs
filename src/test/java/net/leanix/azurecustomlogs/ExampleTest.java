@@ -17,6 +17,21 @@ class ExampleTest {
 
     private static final Random RANDOM = new Random();
 
+    @SuppressWarnings("unused")
+    private static Stream<Arguments> normalizeUserAgentTestData() {
+        return Stream.of(
+            Arguments.of(null, null),
+            Arguments.of("", null),
+            Arguments.of("  ", null), // Tab character
+            Arguments.of("  /1.5     (  )", null),
+            Arguments.of("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:78.0) Gecko/20100101 Firefox/78.0", "Mozilla"),
+            Arguments.of("Swagger-Codegen/1.0.0/java", "Swagger-Codegen"),
+            Arguments.of("python-requests/2.24.0", "python-requests"),
+            Arguments.of("node-fetch/1.0 (+https://github.com/bitinn/node-fetch)	", "node-fetch"),
+            Arguments.of("Jakarta Commons-HttpClient/3.1", "Jakarta Commons-HttpClient")
+        );
+    }
+
     @Test
     void sendingData() {
         // Please note that for this test to work it's expected to provide your Azure Log Analytics configuration
@@ -57,25 +72,6 @@ class ExampleTest {
         } catch (InterruptedException e) {
             // Ignore
         }
-    }
-
-    /**
-     * Dataset and test for user-agent normalisation.
-     */
-
-    @SuppressWarnings("unused")
-    private static Stream<Arguments> normalizeUserAgentTestData() {
-        return Stream.of(
-            Arguments.of(null, null),
-            Arguments.of("", null),
-            Arguments.of("  ", null), // Tab character
-            Arguments.of("  /1.5     (  )", null),
-            Arguments.of("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:78.0) Gecko/20100101 Firefox/78.0", "Mozilla"),
-            Arguments.of("Swagger-Codegen/1.0.0/java", "Swagger-Codegen"),
-            Arguments.of("python-requests/2.24.0", "python-requests"),
-            Arguments.of("node-fetch/1.0 (+https://github.com/bitinn/node-fetch)	", "node-fetch"),
-            Arguments.of("Jakarta Commons-HttpClient/3.1", "Jakarta Commons-HttpClient")
-        );
     }
 
     @ParameterizedTest

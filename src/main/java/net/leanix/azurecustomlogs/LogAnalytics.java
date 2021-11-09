@@ -39,10 +39,9 @@ import okhttp3.logging.HttpLoggingInterceptor.Level;
  */
 public final class LogAnalytics {
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
     // The Java built-in DateTimeFormatter.RFC_1123_DATE_TIME encodes day-of-month as a single digit, which the API doesn't like
     public static final DateTimeFormatter RFC_1123_DATE_TIME = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss O");
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String USER_AGENT = "OkHttp3 " + LogAnalytics.class.getName();
 
     private final OkHttpClient client;
@@ -89,6 +88,15 @@ public final class LogAnalytics {
             .connectTimeout(2, TimeUnit.SECONDS)
             .addInterceptor(clientLoggingInterceptor)
             .build();
+    }
+
+    private static Optional<String> toJson(BaseMetadata requestMetadata) {
+        try {
+            return Optional.of(OBJECT_MAPPER.writeValueAsString(requestMetadata));
+        } catch (JsonProcessingException e) {
+            // ignored
+            return Optional.empty();
+        }
     }
 
     /**
@@ -171,15 +179,6 @@ public final class LogAnalytics {
             return String.format("SharedKey %s:%s", workspaceId, hashedSignature);
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {
             throw new RuntimeException(e);
-        }
-    }
-
-    private static Optional<String> toJson(BaseMetadata requestMetadata) {
-        try {
-            return Optional.of(OBJECT_MAPPER.writeValueAsString(requestMetadata));
-        } catch (JsonProcessingException e) {
-            // ignored
-            return Optional.empty();
         }
     }
 

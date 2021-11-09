@@ -35,6 +35,29 @@ public abstract class BaseMetadata {
     @JsonIgnore
     protected String logType;
 
+    protected static String stripNullSafe(String string) {
+        if (string == null) {
+            return null;
+        }
+        return string.strip();
+    }
+
+    protected static String normalizeUserAgent(String userAgent) {
+        if (userAgent == null) {
+            return userAgent;
+        }
+        userAgent = userAgent.strip();
+        userAgent = userAgent.replaceAll(" \\(.*$", ""); // remove User-Agent details
+        userAgent = userAgent.replaceAll("/.*$", ""); // remove User-Agent versions
+        userAgent = userAgent.replaceAll("\\s+", " "); // remove surplus whitespaces
+        userAgent = userAgent.strip(); // strip again
+        return userAgent.isEmpty() ? null : userAgent; // Don't set empty string values
+    }
+
+    public String getLogType() {
+        return logType;
+    }
+
     @SuppressWarnings("unchecked")  // return (B) this;
     public static class BaseMetadataBuilder<A extends BaseMetadata, B extends BaseMetadataBuilder<?, ?>> {
 
@@ -72,28 +95,5 @@ public abstract class BaseMetadata {
             this.obj.logType = this.obj.getClass().getSimpleName();
             return obj;
         }
-    }
-
-    protected static String stripNullSafe(String string) {
-        if (string == null) {
-            return null;
-        }
-        return string.strip();
-    }
-
-    protected static String normalizeUserAgent(String userAgent) {
-        if (userAgent == null) {
-            return userAgent;
-        }
-        userAgent = userAgent.strip();
-        userAgent = userAgent.replaceAll(" \\(.*$", ""); // remove User-Agent details
-        userAgent = userAgent.replaceAll("/.*$", ""); // remove User-Agent versions
-        userAgent = userAgent.replaceAll("\\s+", " "); // remove surplus whitespaces
-        userAgent = userAgent.strip(); // strip again
-        return userAgent.isEmpty() ? null : userAgent; // Don't set empty string values
-    }
-
-    public String getLogType() {
-        return logType;
     }
 }
