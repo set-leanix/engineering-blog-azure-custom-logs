@@ -39,8 +39,10 @@ import okhttp3.logging.HttpLoggingInterceptor.Level;
  */
 public final class LogAnalytics {
 
-    // The Java built-in DateTimeFormatter.RFC_1123_DATE_TIME encodes day-of-month as a single digit, which the API doesn't like
-    public static final DateTimeFormatter RFC_1123_DATE_TIME = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss O");
+    // see: https://docs.microsoft.com/en-us/azure/azure-monitor/logs/data-collector-api#request-headers
+    // Azure requires the RFC-7231 date format (despite what they have written in their docu). Which requires 2 digit days,
+    // RFC-1123 uses single day digits if <10 which will result in errors with Azure Log Analytics
+    public static final DateTimeFormatter RFC_7231_DATE_TIME = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss O");
     // Object mapper required to prepare our internal objects for API sending */
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String USER_AGENT = "OkHttp3 " + LogAnalytics.class.getName();
@@ -138,20 +140,20 @@ public final class LogAnalytics {
         byte[] bodyBytes = optionalElements.get().getBytes(StandardCharsets.UTF_8);
         int bodyLength = bodyBytes.length;
 
-        String nowRfc1123 = RFC_1123_DATE_TIME.format(ZonedDateTime.now(ZoneOffset.UTC));
-        String authorization = createAuthorization(workspaceId, workspaceKey, bodyLength, nowRfc1123);
+        String nowRfc7231 = RFC_7231_DATE_TIME.format(ZonedDateTime.now(ZoneOffset.UTC));
+        String authorization = createAuthorization(workspaceId, workspaceKey, bodyLength, nowRfc7231);
 
         // We know that this is true for all elements of the batch due to the grouping in #sendBatchWithCircuitBreaker
         final String logType = batch.get(0).getLogType();
 
-        RequestBody requestBody = RequestBody.create(okhttp3.MediaType.parse("application/json"), optionalElements.get());
+        RequestBody requestBody = RequestBody.create(optionalElements.get(), okhttp3.MediaType.parse("application/json"));
         Request request = new Request.Builder()
             .url(azureWorkspaceUrl)
             .post(requestBody)
             .header("User-Agent", USER_AGENT)
             .header("Authorization", authorization)
             .header("Log-Type", logType)
-            .header("x-ms-date", nowRfc1123)
+            .header("x-ms-date", nowRfc7231)
             .header("time-generated-field", CustomLogRequestMetadata.TIMESTAMP_FIELD_NAME)
             .build();
 
