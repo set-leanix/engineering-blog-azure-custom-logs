@@ -29,14 +29,14 @@ class ExampleTest {
         // Create some test log data
         final String workspaceId = UUID.randomUUID().toString();
         final String workspaceName = "workspace";
-        final List<CustomLogRequestMetadata.Builder> requestMetadata = IntStream.range(0, 5)
+        final List<CustomLogRequestMetadata.Builder> requestMetadata = IntStream.range(0, 25)
             .mapToObj((i) -> new CustomLogRequestMetadata.Builder()
                 .workspaceId(workspaceId)
                 .workspaceName(workspaceName)
                 .durationSec(RANDOM.nextInt(60))
                 .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:78.0) Gecko/20100101 Firefox/78.0")
             ).collect(Collectors.toList());
-        final List<CustomLogStatisticMetadata.Builder> statisticMetadata = IntStream.range(0, 5)
+        final List<CustomLogStatisticMetadata.Builder> statisticMetadata = IntStream.range(0, 25)
             .mapToObj((i) -> new CustomLogStatisticMetadata.Builder()
                 .workspaceId(workspaceId)
                 .workspaceName(workspaceName)
@@ -50,7 +50,7 @@ class ExampleTest {
         // We need to sleep a bit otherwise the test terminates before the asynchronous process sent out the logs.
         // In a real situation this is not necessary of course.
         try {
-            Thread.sleep(1000);
+            Thread.sleep(5000);
         } catch (InterruptedException e) {
             // Ignore
         }
