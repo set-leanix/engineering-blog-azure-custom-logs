@@ -1,6 +1,6 @@
 # Azure Custom Logs at LeanIX
 
-> This code comes along with a blog post on how we use Azure Logging at LeanIX for one of our services
+> This is complementary code to a blog post at https://engineering.leanix.net/
 
 ## Motivation
 
